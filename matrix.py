@@ -1,135 +1,183 @@
-import random
-import operator
-import sys
-import unittest
-
-class MatrixError(Exception):
-    """ An exception class for Matrix """
-    pass
+from copy import deepcopy #to copy an object with its attributs
 
 class Matrix(object):
-    """ A simple Python Matrix class with
-    basic operations and operator overloading """
-    
-    def __init__(self, m, n, init=True):
-        if init:
-            self.rows = [[0]*n for x in range(m)]
-        else:
-            self.rows = []
-        self.m = m
-        self.n = n
-        
-    def __getitem__(self, idx):
-        return self.rows[idx]
+	def __init__(self, *args):
+	
+		if len(args) == 1 and type(args[0][0]) == list:  
+			args = args[0] 
+		self.rows = args
+		self.shape = (len(args),len(args[0]))
+		self.iterator_coordinate_x=0
+		self.iterator_coordinate_y=0
+		pass
 
-    def __setitem__(self, idx, item):
-        self.rows[idx] = item
-        
-    def __str__(self):
-        s='\n'.join([' '.join([str(item) for item in row]) for row in self.rows])
-        return s + '\n'
+	def product(self, matrix):
+		matrix_res=[[0]*self.shape[1]]*matrix.shape[0]
+		m_res = Matrix(matrix_res)
+		if self.shape[0]!=matrix.shape[1]:
+			print('error')
+		else:
 
-    def __repr__(self):
-        s=str(self.rows)
-        rank = str(self.getRank())
-        rep="Matrix: \"%s\", rank: \"%s\"" % (s,rank)
-        return rep
-    
-    def reset(self):
-        """ Reset the matrix data """
-        self.rows = [[] for x in range(self.m)]
+			for x in range(0,self.shape[1]):
+				for y in range(0,matrix.shape[0]):
+					for z in range(0,self.shape[1]):
+						print(self.rows[x][z]*matrix.rows[z][y])
+						print('--')
+						print(x)
+						print(y)
+						print('--')
+						m_res.rows[x][y]+=self.rows[x][z]*matrix.rows[z][y]
 
-    def getRank(self):
-        return (self.m, self.n)
 
-    def __eq__(self, mat):
-        """ Test equality """
+		return m_res
 
-        return (mat.rows == self.rows)
-        
-    def __add__(self, mat):
-        """ Add a matrix to this matrix and
-        return the new matrix. Doesn't modify
-        the current matrix """
-        
-        if self.getRank() != mat.getRank():
-            raise MatrixError, "Trying to add matrixes of varying rank!"
+	def indices_generator(self):
+	
+		list_indices = []
+		for i in range(self.shape[0]):
+			for j in range(self.shape[1]):
+				list_indices.append((i,j))
+		return list_indices
+		pass
 
-        ret = Matrix(self.m, self.n)
-        
-        for x in range(self.m):
-            row = [sum(item) for item in zip(self.rows[x], mat[x])]
-            ret[x] = row
+	def apply(self, fun, **kwargs):
+	
+		for elem in self.indices_generator():
+			self.rows[elem[0]][elem[1]]=fun(self.rows[elem[0]][elem[1]],**kwargs)
+		pass
 
-        return ret
+	def __add__(self, m):
+		
+		if type(self)==type(m):	
+			result = deepcopy(self)
+			for tuples in self.indices_generator() :
+				result.rows[tuples[0]][tuples[1]]+=m.rows[tuples[0]][tuples[1]]
+			return result
+		else: #if one matrix + one scalar
+			try:
+				result = deepcopy(self)
+				def functionadd(x,a=m):
+					return x+a
+				result.apply(functionadd,a=m)
+			except TypeError:
+				print("Incompatible type for addition")
+			else:
+				return result
+			pass
 
-    def __sub__(self, mat):
-        """ Subtract a matrix from this matrix and
-        return the new matrix. Doesn't modify
-        the current matrix """
-        
-        if self.getRank() != mat.getRank():
-            raise MatrixError, "Trying to add matrixes of varying rank!"
+	@property
+	def transpose(self):
+		new_rows = [] 
+		for i in range(self.shape[1]): 
+			new_rows.append([0]*self.shape[0])
+		for tuples in self.indices_generator() :
+			new_rows[tuples[1]][tuples[0]]=self.rows[tuples[0]][tuples[1]]
+		return Matrix(new_rows) 
+		pass
 
-        ret = Matrix(self.m, self.n)
-        
-        for x in range(self.m):
-            row = [item[0]-item[1] for item in zip(self.rows[x], mat[x])]
-            ret[x] = row
+	def __str__(self):
+		i=0 
+		m_string ='|'
+		for tuples in self.indices_generator() :
+			if tuples[0]==i:
+				m_string+=str(self.rows[tuples[0]][tuples[1]])+" "
+			else:
+				m_string=m_string[:-1]
+				m_string+="|\n|"+str(self.rows[tuples[0]][tuples[1]])+" "
+				i+=1
+		m_string=m_string[:-1]
+		m_string+='|\n'
+		return m_string
+		pass
+	def __iter__(self):
+		return self
+	def next(self):
+		if self.iterator_coordinate_x<self.shape[0]:
+			self.iterator_coordinate_x+=1
+			return self.rows[self.iterator_coordinate_x-1]
 
-        return ret
+		else:
+			iterator_coordinate_x=0
+			raise StopIteration
 
-    def __mul__(self, mat):
-        """ Multiple a matrix with this matrix and
-        return the new matrix. Doesn't modify
-        the current matrix """
-        
-        matm, matn = mat.getRank()
-        
-        if (self.n != matm):
-            raise MatrixError, "Matrices cannot be multipled!"
-        
-        mat_t = mat.getTranspose()
-        mulmat = Matrix(self.m, matn)
-        
-        for x in range(self.m):
-            for y in range(mat_t.m):
-                mulmat[x][y] = sum([item[0]*item[1] for item in zip(self.rows[x], mat_t[y])])
+	def __next2__(self):
+		if self.iterator_coordinate_y<self.shape[1]:
+			if self.iterator_coordinate_x<self.shape[0]:
+				return self.rows[self.iterator_coordinate_x][self.iterator_coordinate_y]
+				self.iterator_coordinate_y=iterator_coordinate_y+1
+			else:
+				raise StopIteration
+		else:
+			self.iterator_coordinate_y=0;
+			self.iterator_coordinate_x=self.iterator_coordinate_x+1
+			return self.rows[self.iterator_coordinate_x][self.iterator_coordinate_y]
 
-        return mulmat
 
-    def __iadd__(self, mat):
-        """ Add a matrix to this matrix.
-        This modifies the current matrix """
 
-        # Calls __add__
-        tempmat = self + mat
-        self.rows = tempmat.rows[:]
-        return self
 
-    def __isub__(self, mat):
-        """ Add a matrix to this matrix.
-        This modifies the current matrix """
+if __name__ == '__main__':
+	m1 = Matrix([1,1,1],[2,2,2],[3,3,3])
+	m2 = Matrix([[1,2,3],[1,2,0],[0,1,3]])
+	m4 = Matrix([2, 2, 2])
+	m5 = Matrix([[1],[1],[1]])
+	print (m1)
+	print (m2)
+	print (m4)
+	print (m5)
+	m3 = m1+m2
+	print (m3)
+	print (m2)
+	print (m1+0.1)
+	print (m1.transpose)
+	print (m4.transpose)
+	print (m5.transpose)
 
-        # Calls __sub__
-        tempmat = self - mat
-        self.rows = tempmat.rows[:]     
-        return self
+	m6 = Matrix(['A','B'],['Hello','World'])
+	m7 = Matrix(['Selam','canim'],['C','D'])
+	print (m6)
+	print (m6+" "+m7)
+	print (m6.transpose)
+	m8=Matrix([1,3,1],[3,1,3])
+	print(m8.shape[1])
+	print(m8)
+	m9=m8.product(m1)
+	print(m9)
+	m8=Matrix([1,2,0],[2,1,3],[1,1,2])
+	m9=m8.product(m1)
+	print(m8)
+	print(m1)
+	print(m9)
+	for v in m1:
+  		print (v)
 
-    def __imul__(self, mat):
-        """ Add a matrix to this matrix.
-        This modifies the current matrix """
+   """
+Output of these lines:
+m1 = Matrix([1,1,1],[2,2,2],[3,3,3])
+m2 = Matrix([[1,2,3],[1,2,0],[0,1,3]])
+print m1
+print m2
+m3= m1+m2
+print m3
+print m1+3
+print m1.transpose
+Should be following:
+|1 1 1|
+|2 2 2|
+|3 3 3|
 
-        # Possibly not a proper operation
-        # since this changes the current matrix
-        # rank as well...
-        
-        # Calls __mul__
-        tempmat = self * mat
-        self.rows = tempmat.rows[:]
-        self.m, self.n = tempmat.getRank()
-        return self
+|1 2 3|
+|1 2 0|
+|0 1 3|
 
-    def save(self, filename):
-        open(filename, 'w').write(str(self))
-        
+|2 3 4|
+|3 4 2|
+|3 4 6|
+
+|4 4 4|
+|5 5 5|
+|6 6 6|
+
+|1 2 3|
+|1 2 3|
+|1 2 3|
+"""
